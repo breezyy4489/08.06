@@ -1,0 +1,63 @@
+name: NewsRadar CI
+
+on:
+  push:
+    branches: [ main, feature/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Test database module
+        run: |
+          python -c "
+          from database import init_db, insert_article, get_articles, get_stats
+          init_db()
+          r = insert_article('Test Title', 'https://test.com/1', 'Desc', '2024-01-01', 'Test')
+          assert r == True, 'First insert should succeed'
+          r2 = insert_article('Test Title', 'https://test.com/1', 'Desc', '2024-01-01', 'Test')
+          assert r2 == False, 'Duplicate should be rejected'
+          arts = get_articles()
+          assert len(arts) >= 1
+          print('✓ database.py — OK')
+          "
+
+      - name: Test classifier module
+        run: |
+          python -c "
+          from classifier import classify_article, get_sentiment, build_and_train_model
+          build_and_train_model()
+          cat = classify_article('новый смартфон apple iphone камера')
+          assert isinstance(cat, str) and len(cat) > 0
+          sent = get_sentiment('победа успех рекорд')
+          assert sent == 'позитивный'
+          sent2 = get_sentiment('война кризис катастрофа')
+          assert sent2 == 'негативный'
+          print(f'✓ classifier.py — OK (категория: {cat})')
+          "
+
+      - name: Test Flask app starts
+        run: |
+          python -c "
+          from database import init_db
+          init_db()
+          from app import app
+          client = app.test_client()
+          resp = client.get('/')
+          assert resp.status_code == 200
+          resp2 = client.get('/api/stats')
+          assert resp2.status_code == 200
+          print('✓ app.py Flask routes — OK')
+          "

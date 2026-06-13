@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NewsRadar — Новостной агрегатор</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Unbounded:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #0a0a0f;
+      --bg2:       #12121a;
+      --bg3:       #1a1a28;
+      --accent:    #00f5c4;
+      --accent2:   #7b5cfa;
+      --accent3:   #ff4d6d;
+      --text:      #e8e8f0;
+      --muted:     #6b6b8a;
+      --border:    #2a2a40;
+      --card-bg:   #141420;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated background grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,245,196,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,245,196,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container { max-width: 1280px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+    /* ── HEADER ── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 20px 0;
+      background: rgba(10,10,15,0.95);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      font-family: 'Unbounded', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+
+    .logo span { color: var(--accent2); }
+
+    .header-stats {
+      display: flex;
+      gap: 20px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .stat-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .stat-badge .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    /* ── SEARCH ── */
+    .search-bar {
+      flex: 1;
+      min-width: 240px;
+      position: relative;
+    }
+
+    .search-bar input {
+      width: 100%;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 16px 10px 40px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-bar input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(0,245,196,0.1);
+    }
+
+    .search-bar::before {
+      content: '⌕';
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 18px;
+      pointer-events: none;
+    }
+
+    .search-bar input::placeholder { color: var(--muted); }
+
+    /* ── MAIN LAYOUT ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 24px;
+      padding: 28px 0 48px;
+    }
+
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar { position: sticky; top: 80px; height: fit-content; }
+
+    .sidebar-title {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .category-list { display: flex; flex-direction: column; gap: 4px; }
+
+    .cat-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 14px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+
+    .cat-btn:hover {
+      background: var(--bg2);
+      color: var(--text);
+      border-color: var(--border);
+    }
+
+    .cat-btn.active {
+      background: rgba(0,245,196,0.1);
+      color: var(--accent);
+      border-color: rgba(0,245,196,0.3);
+    }
+
+    .cat-icon { font-size: 14px; }
+
+    /* ── STATS CARD ── */
+    .stats-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 24px;
+    }
+
+    .stats-card h4 {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stats-row:last-child { border-bottom: none; }
+    .stats-row .num { color: var(--accent); font-weight: 700; }
+
+    /* ── UPDATE BUTTON ── */
+    .update-btn {
+      width: 100%;
+      margin-top: 16px;
+      padding: 10px;
+      background: transparent;
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .update-btn:hover {
+      background: var(--accent);
+      color: var(--bg);
+    }
+
+    .update-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .next-update {
+      font-size: 10px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 8px;
+    }
+
+    /* ── ARTICLES GRID ── */
+    .articles-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .articles-count {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .articles-count span { color: var(--accent); }
+
+    .articles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    /* ── ARTICLE CARD ── */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s;
+    }
+
+    .card:hover {
+      border-color: rgba(0,245,196,0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+
+    .card:hover::before { transform: scaleX(1); }
+
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      font-size: 9px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .badge-category {
+      background: rgba(123,92,250,0.2);
+      color: #a78bfa;
+      border: 1px solid rgba(123,92,250,0.3);
+    }
+
+    .badge-sentiment-позитивный {
+      background: rgba(0,245,196,0.1);
+      color: var(--accent);
+      border: 1px solid rgba(0,245,196,0.2);
+    }
+
+    .badge-sentiment-негативный {
+      background: rgba(255,77,109,0.1);
+      color: var(--accent3);
+      border: 1px solid rgba(255,77,109,0.2);
+    }
+
+    .badge-sentiment-нейтральный {
+      background: rgba(107,107,138,0.15);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .card-source {
+      font-size: 10px;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    .card-title {
+      font-family: 'Unbounded', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.5;
+      color: var(--text);
+    }
+
+    .card-title a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .card-title a:hover { color: var(--accent); }
+
+    .card-desc {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.7;
+      flex: 1;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: auto;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .card-date { font-size: 10px; color: var(--muted); }
+
+    .card-link {
+      font-size: 10px;
+      color: var(--accent);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: gap 0.2s;
+    }
+
+    .card-link:hover { gap: 8px; }
+
+    /* ── EMPTY STATE ── */
+    .empty {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+
+    .empty .emoji { font-size: 48px; margin-bottom: 16px; }
+    .empty h3 { font-size: 16px; color: var(--text); margin-bottom: 8px; }
+    .empty p { font-size: 12px; }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg2);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 14px 20px;
+      font-size: 12px;
+      color: var(--accent);
+      z-index: 999;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.3s;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* ── MOBILE FILTERS ── */
+    .mobile-cats {
+      display: none;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 16px 0;
+      scrollbar-width: none;
+    }
+
+    @media (max-width: 768px) {
+      .mobile-cats { display: flex; }
+      .mobile-cats .cat-btn { white-space: nowrap; flex-shrink: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div class="header-inner">
+      <a href="/" class="logo">News<span>Radar</span></a>
+
+      <form class="search-bar" method="get" action="/">
+        {% if current_category %}
+          <input type="hidden" name="category" value="{{ current_category }}">
+        {% endif %}
+        <input
+          type="text"
+          name="search"
+          placeholder="Поиск по новостям..."
+          value="{{ search_query }}"
+          id="searchInput"
+        >
+      </form>
+
+      <div class="header-stats">
+        <div class="stat-badge">
+          <div class="dot"></div>
+          <span>{{ stats.total }} статей</span>
+        </div>
+        {% for src, cnt in stats.by_source.items() %}
+        <div class="stat-badge">
+          <span>{{ src }}: {{ cnt }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  <!-- Mobile category filter -->
+  <div class="mobile-cats">
+    <a href="/?search={{ search_query }}" class="cat-btn {% if not current_category %}active{% endif %}">
+      Все
+    </a>
+    {% for cat in categories %}
+    <a href="/?category={{ cat }}&search={{ search_query }}"
+       class="cat-btn {% if current_category == cat %}active{% endif %}">
+      {{ cat }}
+    </a>
+    {% endfor %}
+  </div>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-title">Категории</div>
+      <nav class="category-list">
+        <a href="/?search={{ search_query }}" class="cat-btn {% if not current_category %}active{% endif %}">
+          <span class="cat-icon">◈</span> Все новости
+        </a>
+        {% set icons = {
+          'технологии': '⬡',
+          'политика': '◉',
+          'спорт': '◎',
+          'экономика': '◈',
+          'наука': '⬢',
+          'gaming': '◆',
+          'общество': '●',
+          'развлечения': '◐',
+          'общее': '○'
+        } %}
+        {% for cat in categories %}
+        <a href="/?category={{ cat }}&search={{ search_query }}"
+           class="cat-btn {% if current_category == cat %}active{% endif %}">
+          <span class="cat-icon">{{ icons.get(cat, '○') }}</span> {{ cat }}
+        </a>
+        {% endfor %}
+      </nav>
+
+      <div class="stats-card">
+        <h4>Статистика</h4>
+        {% for cat, cnt in stats.by_category.items() %}
+        <div class="stats-row">
+          <span>{{ cat }}</span>
+          <span class="num">{{ cnt }}</span>
+        </div>
+        {% endfor %}
+      </div>
+
+      <button class="update-btn" id="scrapeBtn" onclick="triggerScrape()">
+        ↻ Обновить сейчас
+      </button>
+      <div class="next-update" id="nextUpdate">
+        Следующее: {{ next_update }}
+      </div>
+    </aside>
+
+    <!-- Articles -->
+    <main>
+      <div class="articles-header">
+        <div class="articles-count">
+          Показано <span>{{ articles|length }}</span> новостей
+          {% if current_category %} · {{ current_category }}{% endif %}
+          {% if search_query %} · "{{ search_query }}"{% endif %}
+        </div>
+      </div>
+
+      <div class="articles-grid" id="articlesGrid">
+        {% if articles %}
+          {% for a in articles %}
+          <article class="card">
+            <div class="card-meta">
+              <span class="badge badge-category">{{ a.category }}</span>
+              <span class="badge badge-sentiment-{{ a.sentiment }}">{{ a.sentiment }}</span>
+              <span class="card-source">{{ a.source }}</span>
+            </div>
+
+            <div class="card-title">
+              <a href="{{ a.url }}" target="_blank" rel="noopener">{{ a.title }}</a>
+            </div>
+
+            {% if a.description %}
+            <div class="card-desc">{{ a.description }}</div>
+            {% endif %}
+
+            <div class="card-footer">
+              <span class="card-date">{{ a.published[:10] if a.published else '' }}</span>
+              <a href="{{ a.url }}" target="_blank" rel="noopener" class="card-link">
+                Читать →
+              </a>
+            </div>
+          </article>
+          {% endfor %}
+
+        {% else %}
+          <div class="empty">
+            <div class="emoji">◌</div>
+            <h3>Новости не найдены</h3>
+            <p>Попробуйте изменить поисковый запрос или категорию</p>
+          </div>
+        {% endif %}
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── Live search (debounced) ──
+  let searchTimer;
+  const searchInput = document.getElementById('searchInput');
+
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      searchInput.closest('form').submit();
+    }, 600);
+  });
+
+  // ── Manual scrape ──
+  async function triggerScrape() {
+    const btn = document.getElementById('scrapeBtn');
+    btn.disabled = true;
+    btn.textContent = '⟳ Загружаю...';
+
+    try {
+      const res = await fetch('/api/scrape', { method: 'POST' });
+      const data = await res.json();
+
+      if (data.status === 'ok') {
+        showToast(`✓ Загружено новых статей: ${data.new_articles}`);
+        if (data.new_articles > 0) {
+          setTimeout(() => location.reload(), 1500);
+        }
+      } else {
+        showToast('✗ Ошибка обновления');
+      }
+    } catch (e) {
+      showToast('✗ Нет соединения');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '↻ Обновить сейчас';
+    }
+  }
+
+  // ── Toast helper ──
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  // ── Update "next update" time ──
+  async function refreshNextUpdate() {
+    try {
+      const res = await fetch('/api/next-update');
+      const data = await res.json();
+      document.getElementById('nextUpdate').textContent =
+        'Следующее: ' + data.next_update;
+    } catch (e) {}
+  }
+
+  setInterval(refreshNextUpdate, 30000);
+</script>
+
+</body>
+</html>
